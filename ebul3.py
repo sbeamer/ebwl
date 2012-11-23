@@ -16,17 +16,13 @@ class Team:
         return g.slot.day
     days = map(grab_day, self.schedule)
     return not d in days
-  def conflicting_games(self):
-    days = map(lambda x: x.slot.day, self.schedule)
-    dupe_days = []
-    for d in days:
-      if days.count(d) > 1:
-        dupe_days += [d]
-    dupe_days = list(set(dupe_days))
-    dupe_games = []
-    for d in dupe_days:
-      dupe_games += filter(lambda x: x.slot.day == d, self.schedule)[:1]
-    return dupe_games
+  def game_on(self, d):
+    return filter(lambda g: g.slot.day == d, self.schedule)[0]
+  def num_gilman(self):
+    sites = map(lambda x: x.slot.site, self.schedule)
+    return sites.count(Site.gilman)
+  def days_that(self, pred):
+    return map(lambda x: x.slot.day, filter(pred, self.schedule))
   def print_schedule(self):
     self.schedule.sort()
     print self.name
@@ -61,13 +57,10 @@ class Game:
     temp = self.slot
     self.slot = other.slot
     other.slot = temp
-  def ok_to_swap(self, other):
-    my_day = self.slot.day
-    other_day = other.slot.day
-    return self.t1.free_on(other_day) and self.t2.free_on(other_day) and \
-      other.t1.free_on(my_day) and other.t2.free_on(my_day) and \
-      (self.t1 != other.t1 and self.t1 != other.t2) and \
-      (self.t2 != other.t1 and self.t2 != other.t2)
+  def sum_gilman(self):
+    return 10*max(self.t1.num_gilman(),self.t2.num_gilman()) + min(self.t1.num_gilman(),self.t2.num_gilman())
+    # return max(self.t1.num_gilman(),self.t2.num_gilman())
+    return self.t1.num_gilman() + self.t2.num_gilman()
   def __str__(self):
     return '%s v %s, %s' % (self.t1, self.t2, self.slot)
 
@@ -124,24 +117,11 @@ def gen_games(teams):
         games += [Game(t1, t2)]
   return games
 
-def remove_conflicts(teams, games):
-  for t in teams:
-    i = len(t.conflicting_games())
-    for cg in t.conflicting_games():
-      d = cg.slot.day
-      for g in games:
-        if cg.ok_to_swap(g):
-          cg.swap_slot(g)
-          break
-      if cg.slot.day == d:
-        print 'couldnt swap'
-    print '%s %u to %u' % (t, i, len(t.conflicting_games()))
-
 def reset_slots(games):
   for g in games:
     g.slot = None
 
-def schedule(games, slots):
+def schedule(games, slots, teams):
   num_attempts = 0
   while True:
     num_attempts += 1
@@ -159,6 +139,43 @@ def schedule(games, slots):
       break
   print 'took %u attempts' % num_attempts
 
+def games_on(d, games):
+  return filter(lambda x: x.slot.day == d, games)
+
+def num_failing(teams, k):
+  return len(filter(lambda t: t.num_gilman() < k, teams))
+
+def try_to_balance_sites(teams, games, min_per):
+  for t in teams:
+    while t.num_gilman() < min_per:
+      # print t, t.num_gilman()
+      dates_to_swap = t.days_that(lambda x: x.slot.site == Site.san_pablo)
+      # print dates_to_swap
+      games_to_swap = sum(map(lambda d: games_on(d,games), dates_to_swap), [])
+      games_to_swap = filter(lambda g: g.slot.site == Site.gilman, games_to_swap)
+      games_to_swap.sort(key=Game.sum_gilman, reverse=True)
+      # make sure not self?
+      target = games_to_swap[0]
+      target.swap_slot(t.game_on(target.slot.day))
+      # print t, t.num_gilman()
+
+def shuffle_sites(games):
+  for d in tuesdays:
+    games_on_d = games_on(d, games)
+    perm_indices = range(len(games_on_d))
+    random.shuffle(perm_indices)
+    for (g,i) in zip(games_on_d, perm_indices):
+      g.swap_slot(games_on_d[i])
+
+def balance_sites(teams, games):
+  num_avail = sum(map(lambda x: x.num_gilman(), teams))
+  min_per = num_avail/len(teams)
+  # print min_per, num_avail
+  while num_failing(teams, min_per) > 0:
+    print num_failing(teams, min_per)
+    shuffle_sites(games)
+    try_to_balance_sites(teams, games, min_per)
+
 def main():
   slots = gen_season()
   teams = gen_teams(12)
@@ -167,24 +184,17 @@ def main():
   # random.shuffle(slots)
   # for (g,s) in zip(games, slots):
   #   g.schedule(s)
-  schedule(games, slots)
+  schedule(games, slots, teams)
 
-  # remove_conflicts(teams[:2], games)
-  # remove_conflicts(teams, games)
-  # remove_conflicts(teams, games)
-  # remove_conflicts(teams, games)
+  balance_sites(teams, games)
 
-  # teams[2].print_schedule()
-  # print teams[2].conflicting_games()
-  # for g in teams[0].conflicting_games():
-  #   print g
+  # teams[0].print_schedule()
+  # print teams[0].days_that(lambda x: x.slot.site == Site.gilman)
 
-  # for t in teams:
-  #   for g in t.conflicting_games():
-  #     print g
+  # print games_on('11/27', games)
 
-  # for t in teams:
-  #   print t.conflicting_games()
+  for t in teams:
+    print t, t.num_gilman()
 
   # print games[0]
   # print games[1]
