@@ -137,27 +137,20 @@ def schedule(games, slots, teams):
     # print len(slots), len(to_schedule)
     if len(to_schedule) == 0:
       break
-  print 'took %u attempts' % num_attempts
+  print '%u\tattempts to get legal dates' % num_attempts
 
 def games_on(d, games):
   return filter(lambda x: x.slot.day == d, games)
 
-def num_failing(teams, k):
-  return len(filter(lambda t: t.num_gilman() < k, teams))
-
 def try_to_balance_sites(teams, games, min_per):
   for t in teams:
     while t.num_gilman() < min_per:
-      # print t, t.num_gilman()
       dates_to_swap = t.days_that(lambda x: x.slot.site == Site.san_pablo)
-      # print dates_to_swap
       games_to_swap = sum(map(lambda d: games_on(d,games), dates_to_swap), [])
       games_to_swap = filter(lambda g: g.slot.site == Site.gilman, games_to_swap)
       games_to_swap.sort(key=Game.sum_gilman, reverse=True)
-      # make sure not self?
       target = games_to_swap[0]
       target.swap_slot(t.game_on(target.slot.day))
-      # print t, t.num_gilman()
 
 def shuffle_sites(games):
   for d in tuesdays:
@@ -168,13 +161,17 @@ def shuffle_sites(games):
       g.swap_slot(games_on_d[i])
 
 def balance_sites(teams, games):
+  def num_failing(teams, k):
+    return len(filter(lambda t: t.num_gilman() < k, teams))
   num_avail = sum(map(lambda x: x.num_gilman(), teams))
   min_per = num_avail/len(teams)
-  # print min_per, num_avail
+  attempts = 0
   while num_failing(teams, min_per) > 0:
-    print num_failing(teams, min_per)
+    # print num_failing(teams, min_per),'failing gilman'
     shuffle_sites(games)
     try_to_balance_sites(teams, games, min_per)
+    attempts+=1
+  print '%u\tattempts to balance gilman' % attempts
 
 def main():
   slots = gen_season()
