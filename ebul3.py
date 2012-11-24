@@ -29,13 +29,17 @@ class Team:
   def days_that(self, pred):
     return map(lambda x: x.slot.day, filter(pred, self.schedule))
   def print_schedule(self):
-    days = map(lambda g: g.slot.day, self.schedule)
-    sched = zip(days,self.schedule)
-    sched.sort()
-    # self.schedule.sort(key=Game.slot)
     print self.name
-    for (d,g) in sched:
-      print ' ', g
+    for d in all_days:
+      if not self.free_on(d):
+        print ' ', self.game_on(d)
+    # days = map(lambda g: g.slot.day, self.schedule)
+    # sched = zip(days,self.schedule)
+    # sched.sort()
+    # # self.schedule.sort(key=Game.slot)
+    # print self.name
+    # for (d,g) in sched:
+    #   print ' ', g
   def not_double_booked(self):
     days = map(lambda g: g.slot.day, self.schedule)
     return len(days) == len(set(days))
@@ -262,8 +266,8 @@ def main():
   
   balance_times(teams, games)
 
-  # for t in teams:
-  #   t.print_schedule()
+  for t in teams:
+    t.print_schedule()
 
   for t in teams:
     print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
