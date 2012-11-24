@@ -22,13 +22,23 @@ class Team:
     return map(lambda x: x.slot.site, self.schedule).count(Site.gilman)
   def num_late(self):
     return map(lambda x: x.slot.time, self.schedule).count(Time.late)
+  def num_fall_early(self):
+    fall = filter(lambda g: '11/' in g.slot.day or '12/' in g.slot.day, \
+      self.schedule)
+    return map(lambda x: x.slot.time, fall).count(Time.early)
   def days_that(self, pred):
     return map(lambda x: x.slot.day, filter(pred, self.schedule))
   def print_schedule(self):
-    self.schedule.sort()
+    days = map(lambda g: g.slot.day, self.schedule)
+    sched = zip(days,self.schedule)
+    sched.sort()
+    # self.schedule.sort(key=Game.slot)
     print self.name
-    for g in self.schedule:
+    for (d,g) in sched:
       print ' ', g
+  def not_double_booked(self):
+    days = map(lambda g: g.slot.day, self.schedule)
+    return len(days) == len(set(days))
 
 class Site:
   san_pablo, gilman = 'San Pablo', 'Gilman'
@@ -66,11 +76,14 @@ class Game:
   def sum_late(self):
     return 10*max(self.t1.num_late(),self.t2.num_late()) + \
       min(self.t1.num_late(),self.t2.num_late())
+  def short_str(self):
+    return '%sv%s' % (self.t1, self.t2)
   def __str__(self):
     return '%s v %s, %s' % (self.t1, self.t2, self.slot)
 
 tuesdays = ['11/27','12/4','12/11','12/18','1/8','1/15','1/22','1/29','2/5']
 thursdays = ['11/29','12/6','12/13','12/20','1/10','1/17','1/24','1/31','2/7']
+all_days = [d for days in zip(tuesdays, thursdays) for d in days]
 
 def tues(d):
   return d in tuesdays
@@ -112,7 +125,7 @@ def gen_season():
   return season
 
 def gen_teams(n):
-  return map(lambda x: Team('Team %u' % x), range(1,n+1))
+  return map(lambda x: Team('T%u' % x), range(1,n+1))
 
 def gen_games(teams):
   games = []
@@ -214,6 +227,25 @@ def balance_times(teams, games):
     attempts+=1
   print '%u\tattempts to balance times' % attempts  
 
+def print_season(games,sep='\t'):
+  def game_str(games_on_d, site, time, field):
+    for g in games_on_d:
+      if g.slot.site == site and g.slot.time == time and g.slot.field == field:
+        return g.short_str()
+    return ''
+  for d in all_days:
+    games_on_d = games_on(d, games)
+    print '%s%s%s%s%s%s%s%s%s%s%s%s%s' % (d,sep,
+      game_str(games_on_d, Site.gilman, Time.early, 1), sep,
+      game_str(games_on_d, Site.gilman, Time.early, 2), sep,
+      game_str(games_on_d, Site.gilman, Time.late, 1), sep,
+      game_str(games_on_d, Site.gilman, Time.late, 2), sep,
+      game_str(games_on_d, Site.san_pablo, Time.full, 1), sep,
+      game_str(games_on_d, Site.san_pablo, Time.full, 2))
+
+def schedule_legal(teams):
+  teams_legal = map(lambda t: t.not_double_booked(), teams)
+  return reduce(lambda x,y: x and y, teams_legal)
 
 def main():
   slots = gen_season()
@@ -223,29 +255,22 @@ def main():
   # random.shuffle(slots)
   # for (g,s) in zip(games, slots):
   #   g.schedule(s)
+
   schedule(games, slots, teams)
-
+  
   balance_sites(teams, games)
-
+  
   balance_times(teams, games)
 
-  for t in teams:
-    print t, t.num_gilman(), t.num_late()
-
-  # print games[0]
-  # print games[1]
-  # games[0].swap_slot(games[1])
-  # print games[0]
-  # print games[1]
-
-  # for g in games:
-  #   print g
-  # for s in slots():
-  #   print s
-  # print len(slots)
   # for t in teams:
-  #   print t
-  # print len(games)
+  #   t.print_schedule()
+
+  for t in teams:
+    print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
+
+  print 'Not double booked:', schedule_legal(teams)
+
+  print_season(games,',')
 
 if __name__ == '__main__':
 	main()
