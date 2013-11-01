@@ -85,8 +85,12 @@ class Game:
   def __str__(self):
     return '%s v %s, %s' % (self.t1, self.t2, self.slot)
 
-tuesdays = ['11/27','12/4','12/11','12/18','1/8','1/15','1/22','1/29','2/5']
-thursdays = ['11/29','12/6','12/13','12/20','1/10','1/17','1/24','1/31','2/7']
+tues2012 = ['12/3','12/10','12/17']
+tues2013 = ['1/7','1/14','1/21','1/28','2/4','2/11']
+thurs2012 = ['12/5','12/12','12/19']
+thurs2013 = ['1/9','1/16','1/23','1/30','2/6','2/13']
+tuesdays = tues2012 + tues2013
+thursdays = thurs2012 + thurs2013
 all_days = [d for days in zip(tuesdays, thursdays) for d in days]
 
 def tues(d):
@@ -95,20 +99,15 @@ def tues(d):
 def thurs(d):
   return d in thursdays
 
-def f_san_pablo_first_week(s):
-  return s.site == Site.san_pablo and (s.day == '11/27' or s.day == '11/29')
-
-def f_beginners(s):
-  return s.site == Site.san_pablo and (s.day == '12/4' or s.day == '12/6') and \
-    s.field == 2
+def f_san_pablo_blocked(s):
+  blocked_days = ['1/7', '2/4', '2/11']
+  return s.site == Site.san_pablo and s.day in blocked_days
 
 def f_open(s):
-  free_gilman_dates = ['12/6','12/20','1/17']
-  free_san_pablo_dates = ['12/20','1/17']
-  return (s.site == Site.gilman and s.day not in free_gilman_dates and \
-    s.time == Time.late and thurs(s.day)) or \
-    (s.site == Site.san_pablo and s.day not in free_san_pablo_dates and \
-    s.field == 1 and thurs(s.day))
+  one_field_nights = ['1/7', '2/11']
+  return ((s.site == Site.gilman and s.time == Time.late and s.day in tues2013) \
+    and not (s.day in one_field_nights and s.field == 1)) \
+    or (s.site == Site.gilman and s.day == '2/13')
 
 def gen_slots(site, dates, time, num_fields):
   slots = []
@@ -118,13 +117,14 @@ def gen_slots(site, dates, time, num_fields):
   return slots
 
 def gen_season():
-  tues_san_pablo = gen_slots(Site.san_pablo, tuesdays, Time.full, 2)
-  thurs_san_pablo = gen_slots(Site.san_pablo, thursdays, Time.full, 2)
-  tues_gilman = gen_slots(Site.gilman, tuesdays, Time.early, 2)
+  tues_san_pablo = gen_slots(Site.san_pablo, tues2013, Time.full, 2)
+  thurs_san_pablo = gen_slots(Site.san_pablo, thurs2013, Time.full, 2)
+  tues_gilman = gen_slots(Site.gilman, tues2012, Time.early, 4)
+  tues_gilman += gen_slots(Site.gilman, tues2013, Time.early, 2)
   tues_gilman += gen_slots(Site.gilman, tuesdays, Time.late, 2)
   thurs_gilman = gen_slots(Site.gilman, thursdays, Time.late, 2)
   season = tues_san_pablo + tues_gilman + thurs_gilman + thurs_san_pablo
-  for f in [f_san_pablo_first_week, f_beginners, f_open]:
+  for f in [f_open, f_san_pablo_blocked]:
     season = filter(lambda x: not f(x), season)
   return season
 
@@ -253,28 +253,31 @@ def schedule_legal(teams):
 
 def main():
   slots = gen_season()
-  teams = gen_teams(12)
-  games = gen_games(teams)
-
-  # random.shuffle(slots)
-  # for (g,s) in zip(games, slots):
-  #   g.schedule(s)
-
-  schedule(games, slots, teams)
-  
-  balance_sites(teams, games)
-  
-  balance_times(teams, games)
-
-  for t in teams:
-    t.print_schedule()
-
-  for t in teams:
-    print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
-
-  print 'Not double booked:', schedule_legal(teams)
-
-  print_season(games,',')
+  for s in slots:
+    print s
+  print len(slots)
+  # teams = gen_teams(12)
+  # games = gen_games(teams)
+  # 
+  # # random.shuffle(slots)
+  # # for (g,s) in zip(games, slots):
+  # #   g.schedule(s)
+  # 
+  # schedule(games, slots, teams)
+  # 
+  # balance_sites(teams, games)
+  # 
+  # balance_times(teams, games)
+  # 
+  # for t in teams:
+  #   t.print_schedule()
+  # 
+  # for t in teams:
+  #   print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
+  # 
+  # print 'Not double booked:', schedule_legal(teams)
+  # 
+  # print_season(games,',')
 
 if __name__ == '__main__':
 	main()
