@@ -267,32 +267,18 @@ def schedule_legal(teams):
 
 def main():
   random.seed(5)
-  slots = gen_season()
-  teams = gen_teams(12)
-  games = gen_games(teams)
 
-  # random.shuffle(slots)
-  # for (g,s) in zip(games, slots):
-  #   g.schedule(s)
-
-  schedule(games, slots, teams)
-
-  while not balance_sites(teams, games):
+  try_again = True
+  while(try_again):
     slots = gen_season()
     teams = gen_teams(12)
     games = gen_games(teams)
     schedule(games, slots, teams)
-
-  while not balance_times(teams, games):
-    slots = gen_season()
-    teams = gen_teams(12)
-    games = gen_games(teams)
-    schedule(games, slots, teams)
-    while not balance_sites(teams, games):
-      slots = gen_season()
-      teams = gen_teams(12)
-      games = gen_games(teams)
-      schedule(games, slots, teams)
+    if not balance_sites(teams, games):
+      continue
+    if not balance_times(teams, games):
+      continue
+    try_again = False
 
   # for t in teams:
   #   t.print_schedule()
