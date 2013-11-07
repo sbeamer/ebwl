@@ -73,12 +73,12 @@ class Game:
     self.slot = other.slot
     other.slot = temp
   def sum_gilman(self):
-    return 10*max(self.t1.num_gilman(),self.t2.num_gilman()) + \
+    return max(self.t1.num_gilman(),self.t2.num_gilman()) + \
       min(self.t1.num_gilman(),self.t2.num_gilman())
     # return max(self.t1.num_gilman(),self.t2.num_gilman())
     # return self.t1.num_gilman() + self.t2.num_gilman()
   def sum_late(self):
-    return 10*max(self.t1.num_late(),self.t2.num_late()) + \
+    return max(self.t1.num_late(),self.t2.num_late()) + \
       min(self.t1.num_late(),self.t2.num_late())
   def short_str(self):
     return '%sv%s' % (self.t1, self.t2)
@@ -193,7 +193,12 @@ def balance_sites(teams, games):
     shuffle_slots(games)
     try_to_balance_sites(teams, games, min_per)
     attempts+=1
+    if (attempts == 1000):
+      print '\taborting balancing sites after 1000 attempts'
+      return False
+    # print '\t', num_failing(teams, min_per)
   print '%u\tattempts to balance gilman' % attempts
+  return True
 
 def try_to_balance_times(teams, games, min_per):
   for t in teams:
@@ -229,7 +234,12 @@ def balance_times(teams, games):
     shuffle_times(games)
     try_to_balance_times(teams, games, min_per)
     attempts+=1
-  print '%u\tattempts to balance times' % attempts  
+    if (attempts % 1000) == 0:
+      print '\taborting balancing sites after 1000 attempts'
+      return False
+      # print '\t',attempts
+  print '%u\tattempts to balance times' % attempts
+  return True
 
 def print_season(games,sep='\t'):
   def game_str(games_on_d, site, time, field):
@@ -252,28 +262,39 @@ def schedule_legal(teams):
   return reduce(lambda x,y: x and y, teams_legal)
 
 def main():
+  random.seed(5)
   slots = gen_season()
-  for s in slots:
-    print s
-  print len(slots)
-  # teams = gen_teams(12)
-  # games = gen_games(teams)
-  # 
-  # # random.shuffle(slots)
-  # # for (g,s) in zip(games, slots):
-  # #   g.schedule(s)
-  # 
-  # schedule(games, slots, teams)
-  # 
-  # balance_sites(teams, games)
-  # 
-  # balance_times(teams, games)
-  # 
+  teams = gen_teams(12)
+  games = gen_games(teams)
+
+  # random.shuffle(slots)
+  # for (g,s) in zip(games, slots):
+  #   g.schedule(s)
+
+  schedule(games, slots, teams)
+
+  while not balance_sites(teams, games):
+    slots = gen_season()
+    teams = gen_teams(12)
+    games = gen_games(teams)
+    schedule(games, slots, teams)
+
+  while not balance_times(teams, games):
+    slots = gen_season()
+    teams = gen_teams(12)
+    games = gen_games(teams)
+    schedule(games, slots, teams)
+    while not balance_sites(teams, games):
+      slots = gen_season()
+      teams = gen_teams(12)
+      games = gen_games(teams)
+      schedule(games, slots, teams)
+
   # for t in teams:
   #   t.print_schedule()
   # 
-  # for t in teams:
-  #   print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
+  for t in teams:
+    print t, t.num_gilman(), t.num_late(), t.num_fall_early(), t.not_double_booked()
   # 
   # print 'Not double booked:', schedule_legal(teams)
   # 
