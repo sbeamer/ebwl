@@ -179,6 +179,7 @@ def try_to_balance_sites(teams, games, min_per):
       target.swap_slot(t.game_on(target.slot.day))
 
 def shuffle_slots(games):
+  # no early games on thursdays (on gilman)
   for d in tuesdays:
     games_on_d = games_on(d, games)
     perm_indices = range(len(games_on_d))
@@ -239,7 +240,7 @@ def balance_times(teams, games):
     try_to_balance_times(teams, games, min_per)
     attempts+=1
     if (attempts % 1000) == 0:
-      print '\taborting balancing sites after 1000 attempts'
+      print '\taborting balancing times after 1000 attempts'
       return False
       # print '\t',attempts
   print '%u\tattempts to balance times' % attempts
