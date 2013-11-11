@@ -1,3 +1,4 @@
+import copy
 import random
 
 class Team:
@@ -16,6 +17,8 @@ class Team:
         return g.slot.day
     days = map(grab_day, self.schedule)
     return not d in days
+  def num_scheduled(self):
+    return len(filter(lambda g: g.slot != None, self.schedule))
   def game_on(self, d):
     return filter(lambda g: g.slot.day == d, self.schedule)[0]
   def num_gilman(self):
@@ -23,7 +26,7 @@ class Team:
   def num_late(self):
     return map(lambda x: x.slot.time, self.schedule).count(Time.late)
   def num_fall(self):
-    fall = filter(lambda g: '11/' in g.slot.day or '12/' in g.slot.day, \
+    fall = filter(lambda g: g.slot != None and '12/' in g.slot.day, \
       self.schedule)
     return len(fall)
   def num_fall_early(self):
@@ -76,6 +79,10 @@ class Game:
     temp = self.slot
     self.slot = other.slot
     other.slot = temp
+  def sum_scheduled(self):
+    # return 10*max(self.t1.num_scheduled(), self.t2.num_scheduled()) + \
+    #   min(self.t1.num_scheduled(), self.t2.num_scheduled())
+    return self.t1.num_scheduled() + self.t2.num_scheduled()
   def sum_gilman(self):
     return max(self.t1.num_gilman(),self.t2.num_gilman()) + \
       min(self.t1.num_gilman(),self.t2.num_gilman())
@@ -84,6 +91,9 @@ class Game:
   def sum_late(self):
     return max(self.t1.num_late(),self.t2.num_late()) + \
       min(self.t1.num_late(),self.t2.num_late())
+  def sum_fall(self):
+    return max(self.t1.num_fall(),self.t2.num_fall()) + \
+      min(self.t1.num_fall(),self.t2.num_fall())
   def short_str(self):
     return '%sv%s' % (self.t1, self.t2)
   def __str__(self):
@@ -95,6 +105,8 @@ thurs2012 = ['12/5','12/12','12/19']
 thurs2013 = ['1/9','1/16','1/23','1/30','2/6','2/13']
 tuesdays = tues2012 + tues2013
 thursdays = thurs2012 + thurs2013
+fall = tues2012 + thurs2012
+winter = tues2013 + thurs2013
 all_days = [d for days in zip(tuesdays, thursdays) for d in days]
 
 def tues(d):
@@ -165,6 +177,24 @@ def schedule(games, slots, teams):
       break
   print '%u\tattempts to get legal dates' % num_attempts
 
+def schedule_deterministic(games, slots, teams):
+  to_schedule = list(games)
+  slots.sort(key=lambda s: s.day)
+  for s in slots:
+    d = s.day
+    available_games = filter(lambda g: g.t1.free_on(s.day) and
+                                       g.t2.free_on(s.day), to_schedule)
+    # print len(available_games),
+    # available_games = filter(lambda g: g.t1.num_scheduled() == g.t2.num_scheduled(), available_games)
+    # print len(available_games)
+    random.shuffle(available_games)
+    available_games.sort(key=Game.sum_scheduled)
+    g = available_games[0]
+    g.schedule(s)
+    to_schedule.remove(g)
+    # print 'scheduled', g, len(available_games)
+  return to_schedule
+
 def games_on(d, games):
   return filter(lambda x: x.slot.day == d, games)
 
@@ -179,8 +209,7 @@ def try_to_balance_sites(teams, games, min_per):
       target.swap_slot(t.game_on(target.slot.day))
 
 def shuffle_slots(games):
-  # no early games on thursdays (on gilman)
-  for d in tuesdays:
+  for d in all_days:
     games_on_d = games_on(d, games)
     perm_indices = range(len(games_on_d))
     random.shuffle(perm_indices)
@@ -266,26 +295,38 @@ def schedule_legal(teams):
   teams_legal = map(lambda t: t.not_double_booked(), teams)
   return reduce(lambda x,y: x and y, teams_legal)
 
-def main():
-  random.seed(5)
 
+def main():
   try_again = True
   while(try_again):
     slots = gen_season()
     teams = gen_teams(12)
     games = gen_games(teams)
-    schedule(games, slots, teams)
+
+    random.seed(5)
+    slots2012 = filter(lambda x: x.day in tues2012, slots)
+    unscheduled = schedule_deterministic(games, slots2012, teams)
+    s2 = filter(lambda x: x.day in thurs2012, slots)
+    unscheduled = schedule_deterministic(unscheduled, s2, teams)
+    # for t in teams:
+    #   print t, t.num_scheduled()
+
+    slots = filter(lambda x: x.day in winter, slots)
+    random.seed()
+    schedule(unscheduled, slots, teams)
+
     if not balance_sites(teams, games):
       continue
     if not balance_times(teams, games):
       continue
     try_again = False
 
-  # for t in teams:
-  #   t.print_schedule()
+  for t in teams:
+    t.print_schedule()
 
   for t in teams:
     print t, t.num_gilman(), t.num_late(), t.num_fall(), t.not_double_booked()
+
   # 
   # print 'Not double booked:', schedule_legal(teams)
   # 
