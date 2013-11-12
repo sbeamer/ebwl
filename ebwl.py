@@ -102,14 +102,14 @@ class Game:
   def __str__(self):
     return '%s v %s, %s' % (self.t1, self.t2, self.slot)
 
-tues2012 = ['12/3','12/10','12/17']
-tues2013 = ['1/7','1/14','1/21','1/28','2/4','2/11']
-thurs2012 = ['12/5','12/12','12/19']
-thurs2013 = ['1/9','1/16','1/23','1/30','2/6','2/13']
-tuesdays = tues2012 + tues2013
-thursdays = thurs2012 + thurs2013
-fall = tues2012 + thurs2012
-winter = tues2013 + thurs2013
+tues2013 = ['12/3','12/10','12/17']
+tues2014 = ['1/7','1/14','1/21','1/28','2/4','2/11']
+thurs2013 = ['12/5','12/12','12/19']
+thurs2014 = ['1/9','1/16','1/23','1/30','2/6','2/13']
+tuesdays = tues2013 + tues2014
+thursdays = thurs2013 + thurs2014
+fall = tues2013 + thurs2013
+winter = tues2014 + thurs2014
 all_days = [d for days in zip(tuesdays, thursdays) for d in days]
 
 def tues(d):
@@ -124,7 +124,7 @@ def f_san_pablo_blocked(s):
 
 def f_open(s):
   one_field_nights = ['1/7', '2/11']
-  return ((s.site == Site.gilman and s.time == Time.late and s.day in tues2013) \
+  return ((s.site == Site.gilman and s.time == Time.late and s.day in tues2014) \
     and not (s.day in one_field_nights and s.field == 1)) \
     or (s.site == Site.gilman and s.day == '2/13')
 
@@ -136,10 +136,10 @@ def gen_slots(site, dates, time, num_fields):
   return slots
 
 def gen_season():
-  tues_san_pablo = gen_slots(Site.san_pablo, tues2013, Time.full, 2)
-  thurs_san_pablo = gen_slots(Site.san_pablo, thurs2013, Time.full, 2)
-  tues_gilman = gen_slots(Site.gilman, tues2012, Time.early, 4)
-  tues_gilman += gen_slots(Site.gilman, tues2013, Time.early, 2)
+  tues_san_pablo = gen_slots(Site.san_pablo, tues2014, Time.full, 2)
+  thurs_san_pablo = gen_slots(Site.san_pablo, thurs2014, Time.full, 2)
+  tues_gilman = gen_slots(Site.gilman, tues2013, Time.early, 4)
+  tues_gilman += gen_slots(Site.gilman, tues2014, Time.early, 2)
   tues_gilman += gen_slots(Site.gilman, tuesdays, Time.late, 2)
   thurs_gilman = gen_slots(Site.gilman, thursdays, Time.late, 2)
   season = tues_san_pablo + tues_gilman + thurs_gilman + thurs_san_pablo
@@ -285,22 +285,20 @@ def balance_times(teams, games, max_attempts, fall_only=False):
   return True
 
 def print_season(games,sep='\t'):
-  def game_str(games_on_d, site, time, field):
+  def game_str(d, games_on_d, site, time, field):
     for g in games_on_d:
       if g.slot.site == site and g.slot.time == time and g.slot.field == field:
-        return g.short_str()
-    return ''
+        print g
   for d in all_days:
     games_on_d = games_on(d, games)
-    print '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (d,sep,
-      game_str(games_on_d, Site.gilman, Time.early, 1), sep,
-      game_str(games_on_d, Site.gilman, Time.early, 2), sep,
-      game_str(games_on_d, Site.gilman, Time.early, 3), sep,
-      game_str(games_on_d, Site.gilman, Time.early, 4), sep,
-      game_str(games_on_d, Site.gilman, Time.late, 1), sep,
-      game_str(games_on_d, Site.gilman, Time.late, 2), sep,
-      game_str(games_on_d, Site.san_pablo, Time.full, 1), sep,
-      game_str(games_on_d, Site.san_pablo, Time.full, 2))
+    game_str(d, games_on_d, Site.gilman, Time.early, 1)
+    game_str(d, games_on_d, Site.gilman, Time.early, 2)
+    game_str(d, games_on_d, Site.gilman, Time.early, 3)
+    game_str(d, games_on_d, Site.gilman, Time.early, 4)
+    game_str(d, games_on_d, Site.gilman, Time.late, 1)
+    game_str(d, games_on_d, Site.gilman, Time.late, 2)
+    game_str(d, games_on_d, Site.san_pablo, Time.full, 1)
+    game_str(d, games_on_d, Site.san_pablo, Time.full, 2)
 
 def schedule_legal(teams):
   teams_legal = map(lambda t: t.not_double_booked(), teams)
@@ -315,11 +313,11 @@ def main():
     games = gen_games(teams)
 
     random.seed(5)
-    slots2012 = filter(lambda x: x.day in tues2012, slots)
-    unscheduled = schedule_deterministic(games, slots2012, teams)
+    slots2013 = filter(lambda x: x.day in tues2013, slots)
+    unscheduled = schedule_deterministic(games, slots2013, teams)
     if not unscheduled:
       break
-    s2 = filter(lambda x: x.day in thurs2012, slots)
+    s2 = filter(lambda x: x.day in thurs2013, slots)
     unscheduled = schedule_deterministic(unscheduled, s2, teams)
     if not unscheduled:
       break
@@ -352,7 +350,7 @@ def main():
     t.print_schedule()
 
   for t in teams:
-    print t, t.num_gilman(), t.num_late(), t.num_fall(), t.num_fall_early()#, t.not_double_booked()
+    print t, t.num_gilman(), t.num_late(), t.num_fall(), t.num_fall_early(), t.not_double_booked()
 
   # 
   # print 'Not double booked:', schedule_legal(teams)
