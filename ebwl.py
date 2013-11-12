@@ -20,17 +20,17 @@ class Team:
   def num_scheduled(self):
     return len(filter(lambda g: g.slot != None, self.schedule))
   def game_on(self, d):
-    return filter(lambda g: g.slot.day == d, self.schedule)[0]
+    return filter(lambda g: g.slot != None and g.slot.day == d, self.schedule)[0]
   def num_gilman(self):
-    return map(lambda x: x.slot.site, self.schedule).count(Site.gilman)
-  def num_late(self):
-    return map(lambda x: x.slot.time, self.schedule).count(Time.late)
+    return map(lambda x: x.slot != None and x.slot.site, self.schedule).count(Site.gilman)
+  def num_late(self, fall_only=False):
+    return map(lambda x: x.slot != None and (not fall_only or x.slot.day in fall) and x.slot.time, self.schedule).count(Time.late)
   def num_fall(self):
     fall = filter(lambda g: g.slot != None and '12/' in g.slot.day, \
       self.schedule)
     return len(fall)
   def num_fall_early(self):
-    fall = filter(lambda g: '11/' in g.slot.day or '12/' in g.slot.day, \
+    fall = filter(lambda g: g.slot != None and '12/' in g.slot.day, \
       self.schedule)
     return map(lambda x: x.slot.time, fall).count(Time.early)
   def days_that(self, pred):
@@ -91,6 +91,9 @@ class Game:
   def sum_late(self):
     return max(self.t1.num_late(),self.t2.num_late()) + \
       min(self.t1.num_late(),self.t2.num_late())
+  def sum_late_fall(self):
+    return max(self.t1.num_late(True),self.t2.num_late(True)) + \
+      min(self.t1.num_late(True),self.t2.num_late(True))
   def sum_fall(self):
     return max(self.t1.num_fall(),self.t2.num_fall()) + \
       min(self.t1.num_fall(),self.t2.num_fall())
@@ -189,6 +192,8 @@ def schedule_deterministic(games, slots, teams):
     # print len(available_games)
     random.shuffle(available_games)
     available_games.sort(key=Game.sum_scheduled)
+    if len(available_games) == 0:
+      return False
     g = available_games[0]
     g.schedule(s)
     to_schedule.remove(g)
@@ -234,14 +239,17 @@ def balance_sites(teams, games):
   print '%u\tattempts to balance gilman' % attempts
   return True
 
-def try_to_balance_times(teams, games, min_per):
+def try_to_balance_times(teams, games, min_per, fall_only):
   for t in teams:
-    while t.num_late() < min_per:
-      dates_to_swap = t.days_that(lambda x: x.slot.time == Time.early)
+    while t.num_late(fall_only) < min_per:
+      dates_to_swap = t.days_that(lambda x: x.slot!=None and x.slot.time == Time.early)
       games_to_swap = sum(map(lambda d: games_on(d,games), dates_to_swap), [])
       games_to_swap = filter(lambda g: g.slot.site == Site.gilman, games_to_swap)
       games_to_swap = filter(lambda g: g.slot.time == Time.late, games_to_swap)
-      games_to_swap.sort(key=Game.sum_late, reverse=True)
+      if fall_only:
+        games_to_swap.sort(key=Game.sum_late_fall, reverse=True)
+      else:
+        games_to_swap.sort(key=Game.sum_late, reverse=True)
       if len(games_to_swap) == 0:
         break
       target = games_to_swap[0]
@@ -249,27 +257,28 @@ def try_to_balance_times(teams, games, min_per):
 
 def shuffle_times(games):
   games = filter(lambda g: g.slot.site==Site.gilman, games)
-  for d in tuesdays:
+  valid_days = set(map(lambda g: g.slot.day, games))
+  for d in valid_days:
     games_on_d = games_on(d, games)
     perm_indices = range(len(games_on_d))
     random.shuffle(perm_indices)
     for (g,i) in zip(games_on_d, perm_indices):
       g.swap_slot(games_on_d[i])
 
-def balance_times(teams, games):
+def balance_times(teams, games, max_attempts, fall_only=False):
   def num_failing(teams, k):
-    return len(filter(lambda t: t.num_late() < k, teams))
-  num_avail = sum(map(lambda x: x.num_late(), teams))
+    return len(filter(lambda t: t.num_late(fall_only) < k, teams))
+  num_avail = sum(map(lambda x: x.num_late(fall_only), teams))
   min_per = num_avail/len(teams)
   # print min_per, num_avail
   attempts = 0
   while num_failing(teams, min_per) > 0:
     # print num_failing(teams, min_per),'failing times'
     shuffle_times(games)
-    try_to_balance_times(teams, games, min_per)
+    try_to_balance_times(teams, games, min_per, fall_only)
     attempts+=1
-    if (attempts % 1000) == 0:
-      print '\taborting balancing times after 1000 attempts'
+    if (attempts % max_attempts) == 0:
+      print '\taborting balancing times after %u attempts' % max_attempts
       return False
       # print '\t',attempts
   print '%u\tattempts to balance times' % attempts
@@ -283,9 +292,11 @@ def print_season(games,sep='\t'):
     return ''
   for d in all_days:
     games_on_d = games_on(d, games)
-    print '%s%s%s%s%s%s%s%s%s%s%s%s%s' % (d,sep,
+    print '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (d,sep,
       game_str(games_on_d, Site.gilman, Time.early, 1), sep,
       game_str(games_on_d, Site.gilman, Time.early, 2), sep,
+      game_str(games_on_d, Site.gilman, Time.early, 3), sep,
+      game_str(games_on_d, Site.gilman, Time.early, 4), sep,
       game_str(games_on_d, Site.gilman, Time.late, 1), sep,
       game_str(games_on_d, Site.gilman, Time.late, 2), sep,
       game_str(games_on_d, Site.san_pablo, Time.full, 1), sep,
@@ -297,8 +308,8 @@ def schedule_legal(teams):
 
 
 def main():
-  try_again = True
-  while(try_again):
+  nf = []
+  while(1):
     slots = gen_season()
     teams = gen_teams(12)
     games = gen_games(teams)
@@ -306,8 +317,15 @@ def main():
     random.seed(5)
     slots2012 = filter(lambda x: x.day in tues2012, slots)
     unscheduled = schedule_deterministic(games, slots2012, teams)
+    if not unscheduled:
+      break
     s2 = filter(lambda x: x.day in thurs2012, slots)
     unscheduled = schedule_deterministic(unscheduled, s2, teams)
+    if not unscheduled:
+      break
+    scheduled = filter(lambda g: g not in unscheduled, games)
+    # if not balance_times(teams, scheduled):
+    #   break
     # for t in teams:
     #   print t, t.num_scheduled()
 
@@ -315,22 +333,31 @@ def main():
     random.seed()
     schedule(unscheduled, slots, teams)
 
-    if not balance_sites(teams, games):
+    if not balance_sites(teams, unscheduled):
       continue
-    if not balance_times(teams, games):
+    if not balance_times(teams, games, 100):
       continue
-    try_again = False
+    # if not balance_times(teams, scheduled, 1000, True):
+    #   continue
+    num_fail = len(filter(lambda t: t.num_fall_early() != 2, teams))
+    print num_fail, 'nf'
+    if num_fail  != 2:
+      nf += [num_fail]
+      continue
+    break
+
+  print nf
 
   for t in teams:
     t.print_schedule()
 
   for t in teams:
-    print t, t.num_gilman(), t.num_late(), t.num_fall(), t.not_double_booked()
+    print t, t.num_gilman(), t.num_late(), t.num_fall(), t.num_fall_early()#, t.not_double_booked()
 
   # 
   # print 'Not double booked:', schedule_legal(teams)
   # 
-  # print_season(games,',')
+  print_season(games,',')
 
 if __name__ == '__main__':
 	main()
