@@ -27,9 +27,13 @@ def load_slots(filename):
 def slot_stats(slots):
   print '%u total slots' % len(slots)
   field_counts = Counter(map(lambda slot: slot.location(), slots))
-  for field, count in field_counts.items():
-    print '  %s: %u' % (field, count),
-  print '  Total: %u' % sum(field_counts.values())
+  print '  Fieilds: ', field_counts.items()
+  year_counts = Counter(map(lambda s: s.date[:s.date.find('/')], slots))
+  print '  Years: ', year_counts.items()
+  day_counts = Counter(map(lambda slot: slot.weekday, slots))
+  print '  Day: ', day_counts.items()
+  time_counts = Counter(map(lambda slot: slot.time, slots))
+  print '  Time: ', time_counts.items()
 
 
 def main():
