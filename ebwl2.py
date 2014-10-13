@@ -28,6 +28,8 @@ class Game:
     return '%s v %s @ %s' % (self.t1, self.t2, field)
   def schedule(self, slot):
     self.slot = slot
+  def teams(self):
+    return [self.t1, self.t2]
   def sum_scheduled(self, games):
     scheduled = remove_unscheduled(games)
     return len(games_for_team(self.t1, scheduled) + \
@@ -36,6 +38,10 @@ class Game:
 
 def print_list(l):
   print '\n'.join(map(lambda x: x.__str__(), l))
+
+def flat_map(f,l):
+  return [item for sublist in map(f,l) for item in sublist]
+
 
 def gen_teams(num_teams):
   return map(lambda x: 'T' + str(x), range(1,num_teams+1))
@@ -82,8 +88,7 @@ def games_on_day(games, date):
 
 def games_free_for_day(games, date):
   unscheduled = filter(lambda g: g.slot == None, games)
-  teams_playing = map(lambda g: g.t1, games_on_day(games, date)) + \
-                  map(lambda g: g.t2, games_on_day(games, date))
+  teams_playing = flat_map(lambda g: g.teams(), games_on_day(games, date))
   return games_excl_teams(unscheduled, teams_playing)
 
 def print_team_schedule(team, games):
@@ -98,6 +103,7 @@ def schedule(games, slots):
     random.shuffle(available_games)
     available_games[0].schedule(s)
   return True
+
 
 
 def main():
