@@ -1,4 +1,5 @@
 from collections import Counter
+import random
 import sys
 
 class Slot:
@@ -27,9 +28,43 @@ class Game:
     return '%s v %s @ %s' % (self.t1, self.t2, field)
   def schedule(self, slot):
     self.slot = slot
+  def sum_scheduled(self, games):
+    scheduled = remove_unscheduled(games)
+    return len(games_for_team(self.t1, scheduled) + \
+               games_for_team(self.t2, scheduled))
+
 
 def print_list(l):
   print '\n'.join(map(lambda x: x.__str__(), l))
+
+def gen_teams(num_teams):
+  return map(lambda x: 'T' + str(x), range(1,num_teams+1))
+
+def gen_games(teams):
+  all_games = []
+  for t1 in teams:
+    for t2 in teams[teams.index(t1):]:
+      if t1 != t2:
+        all_games += [Game(t1,t2)]
+  return all_games
+
+def load_slots(filename):
+  f = open(filename)
+  lines = f.readlines()
+  no_returns = map(lambda s: s.strip(), lines)
+  no_blanks = filter(lambda s: s!='', no_returns)
+  return map(Slot, no_blanks)
+
+def slot_stats(slots):
+  print '%u total slots' % len(slots)
+  field_counts = Counter(map(lambda slot: slot.location(), slots))
+  print '  Fieilds: ', field_counts.items()
+  year_counts = Counter(map(lambda s: s.date[:s.date.find('/')], slots))
+  print '  Years: ', year_counts.items()
+  day_counts = Counter(map(lambda slot: slot.weekday, slots))
+  print '  Day: ', day_counts.items()
+  time_counts = Counter(map(lambda slot: slot.time, slots))
+  print '  Time: ', time_counts.items()
 
 
 def games_for_team(team, games):
@@ -51,43 +86,23 @@ def games_free_for_day(games, date):
                   map(lambda g: g.t2, games_on_day(games, date))
   return games_without_teams(unscheduled, teams_playing)
 
+def print_team_schedule(team, games):
+  # games = games_for_team(game, team)
+  print_list(games_for_team(team, games))
 
-def load_slots(filename):
-  f = open(filename)
-  lines = f.readlines()
-  no_returns = map(lambda s: s.strip(), lines)
-  no_blanks = filter(lambda s: s!='', no_returns)
-  return map(Slot, no_blanks)
-
-def slot_stats(slots):
-  print '%u total slots' % len(slots)
-  field_counts = Counter(map(lambda slot: slot.location(), slots))
-  print '  Fieilds: ', field_counts.items()
-  year_counts = Counter(map(lambda s: s.date[:s.date.find('/')], slots))
-  print '  Years: ', year_counts.items()
-  day_counts = Counter(map(lambda slot: slot.weekday, slots))
-  print '  Day: ', day_counts.items()
-  time_counts = Counter(map(lambda slot: slot.time, slots))
-  print '  Time: ', time_counts.items()
-
-def gen_teams(num_teams):
-  return map(lambda x: 'T' + str(x), range(1,num_teams+1))
-
-def gen_games(teams):
-  all_games = []
-  for t1 in teams:
-    for t2 in teams[teams.index(t1):]:
-      if t1 != t2:
-        all_games += [Game(t1,t2)]
-  return all_games
 
 def schedule(games, slots):
   for s in slots:
-    available_games = games_free_for_day(games, s)
-    # print len(available_games)
-    available_games[0].schedule(s)
+    available_games = games_free_for_day(games, s.date)
     if len(available_games) == 0:
+      # print 'got', len(filter(lambda g: g.slot != None, games))
       return False
+    # print len(available_games)
+    random.shuffle(available_games)
+    available_games[0].schedule(s)
+    # total_game = map(lambda g: (g.sum_scheduled(games), g), available_games)
+    # total_game.sort()
+    # total_game[0][1].schedule(s)
   return True
 
 
@@ -97,18 +112,28 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  teams = gen_teams(num_teams)
-  games = gen_games(teams)
-  slots = load_slots(filename)
+  scheduled = False
+  seed = 1
+  while not scheduled:
+    random.seed(seed)
+    teams = gen_teams(num_teams)
+    games = gen_games(teams)
+    slots = load_slots(filename)
   # for s in slots:
   #   print s
   # slot_stats(slots)
   # for g in games:
   #   print g
   # print map(lambda s: s.__str__(), remove_unscheduled(games_for_team('T1', games)))
-  if not schedule(games, slots):
-    print 'unable to schedule all'
-    return
+    if not schedule(games, slots):
+      print seed, 'got ', len(remove_unscheduled(games)), '/', len(games)
+    else:
+      print seed, 'succeeded'
+      break
+    seed += 1
+    # print 'unable to schedule all games'
+    # return
+  print_team_schedule('T1', games)
 
 
 if __name__ == '__main__':
