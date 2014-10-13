@@ -25,6 +25,31 @@ class Game:
   def __str__(self):
     field = self.slot if self.slot != None else 'unscheduled'
     return '%s v %s @ %s' % (self.t1, self.t2, field)
+  def schedule(self, slot):
+    self.slot = slot
+
+def print_list(l):
+  print '\n'.join(map(lambda x: x.__str__(), l))
+
+
+def games_for_team(team, games):
+  return filter(lambda g: g.t1 == team or g.t2 == team, games)
+
+def remove_unscheduled(games):
+  return filter(lambda g: g.slot != None, games)
+
+def games_without_teams(games, teams):
+  return filter(lambda g: (g.t1 not in teams) and (g.t2 not in teams), games)
+
+def games_on_day(games, date):
+  scheduled = remove_unscheduled(games)
+  return filter(lambda g: g.slot.date==date, scheduled)
+
+def games_free_for_day(games, date):
+  unscheduled = filter(lambda g: g.slot == None, games)
+  teams_playing = map(lambda g: g.t1, games_on_day(games, date)) + \
+                  map(lambda g: g.t2, games_on_day(games, date))
+  return games_without_teams(unscheduled, teams_playing)
 
 
 def load_slots(filename):
@@ -56,6 +81,15 @@ def gen_games(teams):
         all_games += [Game(t1,t2)]
   return all_games
 
+def schedule(games, slots):
+  for s in slots:
+    available_games = games_free_for_day(games, s)
+    # print len(available_games)
+    available_games[0].schedule(s)
+    if len(available_games) == 0:
+      return False
+  return True
+
 
 def main():
   num_teams = 12
@@ -63,14 +97,18 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
+  teams = gen_teams(num_teams)
+  games = gen_games(teams)
   slots = load_slots(filename)
   # for s in slots:
   #   print s
   # slot_stats(slots)
-  teams = gen_teams(num_teams)
-  games = gen_games(teams)
   # for g in games:
   #   print g
+  # print map(lambda s: s.__str__(), remove_unscheduled(games_for_team('T1', games)))
+  if not schedule(games, slots):
+    print 'unable to schedule all'
+    return
 
 
 if __name__ == '__main__':
