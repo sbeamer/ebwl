@@ -73,6 +73,9 @@ def slot_stats(slots):
   print '  Time: ', time_counts.items()
 
 
+def on_gilman(game):
+  return 'Gilman' in game.slot.location()
+
 def games_for_team(team, games):
   return filter(lambda g: g.t1 == team or g.t2 == team, games)
 
@@ -83,16 +86,23 @@ def games_excl_teams(games, teams):
   return filter(lambda g: (g.t1 not in teams) and (g.t2 not in teams), games)
 
 def games_on_day(games, date):
-  scheduled = remove_unscheduled(games)
-  return filter(lambda g: g.slot.date==date, scheduled)
+  return filter(lambda g: g.slot.date==date, remove_unscheduled(games))
+
+def teams_playing_in(games):
+  return flat_map(lambda g: g.teams(), games)
 
 def games_free_for_day(games, date):
   unscheduled = filter(lambda g: g.slot == None, games)
-  teams_playing = flat_map(lambda g: g.teams(), games_on_day(games, date))
+  teams_playing = teams_playing_in(games_on_day(games, date))
   return games_excl_teams(unscheduled, teams_playing)
 
 def print_team_schedule(team, games):
   print_list(games_for_team(team, games))
+
+def count_metric(pred, games, num_teams):
+  c = Counter(teams_playing_in(filter(pred, games)))
+  total = sum(c.values())
+  return total, float(total)/num_teams, min(c.values()), max(c.values())
 
 
 def schedule(games, slots):
@@ -126,6 +136,7 @@ def main():
       break
     seed += 1
   print_team_schedule('T1', games)
+  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
 
 
 if __name__ == '__main__':
