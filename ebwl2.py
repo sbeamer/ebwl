@@ -73,7 +73,7 @@ def games_for_team(team, games):
 def remove_unscheduled(games):
   return filter(lambda g: g.slot != None, games)
 
-def games_without_teams(games, teams):
+def games_excl_teams(games, teams):
   return filter(lambda g: (g.t1 not in teams) and (g.t2 not in teams), games)
 
 def games_on_day(games, date):
@@ -84,10 +84,9 @@ def games_free_for_day(games, date):
   unscheduled = filter(lambda g: g.slot == None, games)
   teams_playing = map(lambda g: g.t1, games_on_day(games, date)) + \
                   map(lambda g: g.t2, games_on_day(games, date))
-  return games_without_teams(unscheduled, teams_playing)
+  return games_excl_teams(unscheduled, teams_playing)
 
 def print_team_schedule(team, games):
-  # games = games_for_team(game, team)
   print_list(games_for_team(team, games))
 
 
@@ -95,14 +94,9 @@ def schedule(games, slots):
   for s in slots:
     available_games = games_free_for_day(games, s.date)
     if len(available_games) == 0:
-      # print 'got', len(filter(lambda g: g.slot != None, games))
       return False
-    # print len(available_games)
     random.shuffle(available_games)
     available_games[0].schedule(s)
-    # total_game = map(lambda g: (g.sum_scheduled(games), g), available_games)
-    # total_game.sort()
-    # total_game[0][1].schedule(s)
   return True
 
 
@@ -113,26 +107,18 @@ def main():
     return
   filename = sys.argv[1]
   scheduled = False
-  seed = 1
+  seed = 65
   while not scheduled:
     random.seed(seed)
     teams = gen_teams(num_teams)
     games = gen_games(teams)
     slots = load_slots(filename)
-  # for s in slots:
-  #   print s
-  # slot_stats(slots)
-  # for g in games:
-  #   print g
-  # print map(lambda s: s.__str__(), remove_unscheduled(games_for_team('T1', games)))
     if not schedule(games, slots):
       print seed, 'got ', len(remove_unscheduled(games)), '/', len(games)
     else:
       print seed, 'succeeded'
       break
     seed += 1
-    # print 'unable to schedule all games'
-    # return
   print_team_schedule('T1', games)
 
 
