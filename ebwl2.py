@@ -17,6 +17,16 @@ class Slot:
     return s[:s.find(' #')] if '#' in s else s
 
 
+class Game:
+  def __init__(self, t1, t2):
+    self.t1 = t1
+    self.t2 = t2
+    self.slot = None
+  def __str__(self):
+    field = self.slot if self.slot != None else 'unscheduled'
+    return '%s v %s @ %s' % (self.t1, self.t2, field)
+
+
 def load_slots(filename):
   f = open(filename)
   lines = f.readlines()
@@ -35,8 +45,20 @@ def slot_stats(slots):
   time_counts = Counter(map(lambda slot: slot.time, slots))
   print '  Time: ', time_counts.items()
 
+def gen_teams(num_teams):
+  return map(lambda x: 'T' + str(x), range(1,num_teams+1))
+
+def gen_games(teams):
+  all_games = []
+  for t1 in teams:
+    for t2 in teams[teams.index(t1):]:
+      if t1 != t2:
+        all_games += [Game(t1,t2)]
+  return all_games
+
 
 def main():
+  num_teams = 12
   if len(sys.argv) < 2:
     print 'Please give schedule input csv'
     return
@@ -44,7 +66,11 @@ def main():
   slots = load_slots(filename)
   # for s in slots:
   #   print s
-  slot_stats(slots)
+  # slot_stats(slots)
+  teams = gen_teams(num_teams)
+  games = gen_games(teams)
+  # for g in games:
+  #   print g
 
 
 if __name__ == '__main__':
