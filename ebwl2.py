@@ -34,13 +34,15 @@ class Game:
     scheduled = remove_unscheduled(games)
     return len(games_for_team(self.t1, scheduled) + \
                games_for_team(self.t2, scheduled))
+  def swap_slot(self, other_game):
+    print 'swapping'
+    temp_slot = other_game.slot
+    other_game.slot = self.slot
+    self.slot = temp_slot
 
 
 def print_list(l):
   print '\n'.join(map(lambda x: x.__str__(), l))
-
-def flat_map(f,l):
-  return [item for sublist in map(f,l) for item in sublist]
 
 
 def gen_teams(num_teams):
@@ -76,6 +78,12 @@ def slot_stats(slots):
 def on_gilman(game):
   return 'Gilman' in game.slot.location()
 
+def gilman_total(team, games):
+  return len(filter(on_gilman, games_for_team(team, games)))
+
+def sum_gilman(game, games):
+  return gilman_total(game.t1, games) + gilman_total(game.t2, games)
+
 def games_for_team(team, games):
   return filter(lambda g: g.t1 == team or g.t2 == team, games)
 
@@ -85,15 +93,15 @@ def remove_unscheduled(games):
 def games_excl_teams(games, teams):
   return filter(lambda g: (g.t1 not in teams) and (g.t2 not in teams), games)
 
-def games_on_day(games, date):
+def games_on_day(date, games):
   return filter(lambda g: g.slot.date==date, remove_unscheduled(games))
 
 def teams_playing_in(games):
-  return flat_map(lambda g: g.teams(), games)
+  return sum(map(lambda g: g.teams(), games), [])
 
 def games_free_for_day(games, date):
   unscheduled = filter(lambda g: g.slot == None, games)
-  teams_playing = teams_playing_in(games_on_day(games, date))
+  teams_playing = teams_playing_in(games_on_day(date, games))
   return games_excl_teams(unscheduled, teams_playing)
 
 def print_team_schedule(team, games):
@@ -101,8 +109,9 @@ def print_team_schedule(team, games):
 
 def count_metric(pred, games, num_teams):
   c = Counter(teams_playing_in(filter(pred, games)))
-  total = sum(c.values())
-  return total, float(total)/num_teams, min(c.values()), max(c.values())
+  return c
+  # total = sum(c.values())
+  # return total, float(total)/num_teams, min(c.values()), max(c.values())
 
 
 def schedule(games, slots):
@@ -114,6 +123,20 @@ def schedule(games, slots):
     available_games[0].schedule(s)
   return True
 
+def balance_fields(games, teams):
+  counts = count_metric(on_gilman, games, len(teams))
+  total_avail = sum(counts.values())
+  min_per = total_avail / len(teams)
+  for t in teams:
+    while gilman_total(t, games) < min_per:
+      sp_games = filter(lambda g: not on_gilman(g), games_for_team(t, games))
+      dates_to_swap = map(lambda g: g.slot.date, sp_games)
+      games_to_swap = sum(map(lambda d: games_on_day(d,games), dates_to_swap), [])
+      games_to_swap = filter(on_gilman, games_to_swap)
+      games_to_swap.sort(key=lambda g: sum_gilman(g, games), reverse=True)
+      down_game = games_to_swap[0]
+      up_game = games_on_day(down_game.slot.date, games_for_team(t, games))[0]
+      down_game.swap_slot(up_game)
 
 
 def main():
@@ -136,6 +159,10 @@ def main():
       break
     seed += 1
   print_team_schedule('T1', games)
+  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+  balance_fields(games, teams)
+  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+  balance_fields(games, teams)
   print 'Gilman: ', count_metric(on_gilman, games, num_teams)
 
 
