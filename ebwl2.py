@@ -113,6 +113,13 @@ def count_metric(pred, games, num_teams):
   # total = sum(c.values())
   # return total, float(total)/num_teams, min(c.values()), max(c.values())
 
+def metric_total(pred, games):
+  return len(filter(pred, games))
+
+def game_total(pred, g, games):
+  return metric_total(pred, games_for_team(g.t1, games)) + \
+         metric_total(pred, games_for_team(g.t2, games))
+
 
 def schedule(games, slots):
   for s in slots:
@@ -123,21 +130,23 @@ def schedule(games, slots):
     available_games[0].schedule(s)
   return True
 
-def balance_fields(games, teams):
-  counts = count_metric(on_gilman, games, len(teams))
-  total_avail = sum(counts.values())
+def balance(pred, games, teams):
+  counts = count_metric(pred, games, len(teams)).values()
+  total_avail = sum(counts)
   min_per = total_avail / len(teams)
+  if min(counts) >= min_per:
+    return True
   for t in teams:
-    while gilman_total(t, games) < min_per:
-      sp_games = filter(lambda g: not on_gilman(g), games_for_team(t, games))
-      dates_to_swap = map(lambda g: g.slot.date, sp_games)
-      games_to_swap = sum(map(lambda d: games_on_day(d,games), dates_to_swap), [])
-      games_to_swap = filter(on_gilman, games_to_swap)
-      games_to_swap.sort(key=lambda g: sum_gilman(g, games), reverse=True)
+    while metric_total(pred, games_for_team(t, games)) < min_per:
+      neg_games = filter(lambda g: not(pred(g)), games_for_team(t, games))
+      dates_to_swap = map(lambda g: g.slot.date, neg_games)
+      games_to_swap = map(lambda d: games_on_day(d,games), dates_to_swap)
+      games_to_swap = filter(pred, sum(games_to_swap,[]))
+      games_to_swap.sort(key=lambda g: game_total(pred, g, games), reverse=True)
       down_game = games_to_swap[0]
       up_game = games_on_day(down_game.slot.date, games_for_team(t, games))[0]
       down_game.swap_slot(up_game)
-
+  return False
 
 def main():
   num_teams = 12
@@ -158,12 +167,12 @@ def main():
       print seed, 'succeeded'
       break
     seed += 1
+
+  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+  while not balance(on_gilman, games, teams):
+    print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+
   print_team_schedule('T1', games)
-  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
-  balance_fields(games, teams)
-  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
-  balance_fields(games, teams)
-  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
 
 
 if __name__ == '__main__':
