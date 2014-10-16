@@ -75,6 +75,9 @@ def slot_stats(slots):
   print '  Time: ', time_counts.items()
 
 
+def on_tuesday(game):
+  return 'Tuesday' in game.slot.weekday
+
 def on_gilman(game):
   return 'Gilman' in game.slot.location()
 
@@ -114,6 +117,17 @@ def game_total(pred, g, games):
   return metric_total(pred, games_for_team(g.t1, games)) + \
          metric_total(pred, games_for_team(g.t2, games))
 
+def game_max(pred, g, games):
+  return max(metric_total(pred, games_for_team(g.t1, games)), \
+             metric_total(pred, games_for_team(g.t2, games)))
+
+def check_balance(pred, games, teams):
+  counts = count_metric(pred, games, len(teams)).values()
+  total_avail = sum(counts)
+  min_per = total_avail / len(teams)
+  max_per = (total_avail + len(teams) - 1) / len(teams)
+  return min(counts) >= min_per and max(counts) <= max_per
+
 
 def schedule(games, slots):
   for s in slots:
@@ -142,29 +156,33 @@ def balance(pred, games, teams):
       down_game.swap_slot(up_game)
   return False
 
+
 def main():
   num_teams = 12
   if len(sys.argv) < 2:
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  scheduled = False
-  seed = 65
-  while not scheduled:
+  seed = 1717
+  while True:
     random.seed(seed)
+    seed += 1
     teams = gen_teams(num_teams)
     games = gen_games(teams)
     slots = load_slots(filename)
     if not schedule(games, slots):
-      print seed, 'got ', len(remove_unscheduled(games)), '/', len(games)
-    else:
-      print seed, 'succeeded'
-      break
-    seed += 1
+      continue
+    print 'seed=%u' % (seed-1)
+    print '  scheduled'
+    if not check_balance(on_tuesday, games, teams):
+      print '  unbalanced tuesdays'
+      continue
+    print '  balanced tuesdays'
 
-  print 'Gilman: ', count_metric(on_gilman, games, num_teams)
-  while not balance(on_gilman, games, teams):
-    print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+    while not balance(on_gilman, games, teams):
+      pass
+    print '  balanced gilman/san pablo'
+    break
 
   print_team_schedule('T1', games)
 
