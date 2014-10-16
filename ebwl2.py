@@ -78,12 +78,6 @@ def slot_stats(slots):
 def on_gilman(game):
   return 'Gilman' in game.slot.location()
 
-def gilman_total(team, games):
-  return len(filter(on_gilman, games_for_team(team, games)))
-
-def sum_gilman(game, games):
-  return gilman_total(game.t1, games) + gilman_total(game.t2, games)
-
 def games_for_team(team, games):
   return filter(lambda g: g.t1 == team or g.t2 == team, games)
 
