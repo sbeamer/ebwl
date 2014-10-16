@@ -35,7 +35,7 @@ class Game:
     return len(games_for_team(self.t1, scheduled) + \
                games_for_team(self.t2, scheduled))
   def swap_slot(self, other_game):
-    print 'swapping'
+    # print 'swapping'
     temp_slot = other_game.slot
     other_game.slot = self.slot
     self.slot = temp_slot
@@ -57,9 +57,7 @@ def gen_games(teams):
   return all_games
 
 def load_slots(filename):
-  f = open(filename)
-  lines = f.readlines()
-  no_returns = map(lambda s: s.strip(), lines)
+  no_returns = map(lambda s: s.strip(), open(filename).readlines())
   no_blanks = filter(lambda s: s!='', no_returns)
   return map(Slot, no_blanks)
 
@@ -105,13 +103,11 @@ def games_free_for_day(games, date):
   return games_excl_teams(unscheduled, teams_playing)
 
 def print_team_schedule(team, games):
-  print_list(games_for_team(team, games))
+  print_list(sorted(games_for_team(team, games),key=lambda g: g.slot.date))
 
 def count_metric(pred, games, num_teams):
   c = Counter(teams_playing_in(filter(pred, games)))
   return c
-  # total = sum(c.values())
-  # return total, float(total)/num_teams, min(c.values()), max(c.values())
 
 def metric_total(pred, games):
   return len(filter(pred, games))
@@ -120,9 +116,6 @@ def game_total(pred, g, games):
   return metric_total(pred, games_for_team(g.t1, games)) + \
          metric_total(pred, games_for_team(g.t2, games))
 
-def game_max(pred, g, games):
-  return max(metric_total(pred, games_for_team(g.t1, games)), \
-             metric_total(pred, games_for_team(g.t2, games)))
 
 def check_balance(pred, games, teams):
   counts = count_metric(pred, games, len(teams)).values()
@@ -173,7 +166,6 @@ def balance(label, pred, games, teams):
   if trials == 10:
     print '  unbalanced', label
     return False
-  # print 'Gilman: ', count_metric(on_gilman, games, num_teams)
   print '  balanced', label
   return True
 
@@ -185,8 +177,7 @@ def main():
     return
   filename = sys.argv[1]
   seed = 6475
-  scheduled = False
-  while not scheduled:
+  while True:
     random.seed(seed)
     seed += 1
     teams = gen_teams(num_teams)
@@ -199,16 +190,15 @@ def main():
       print '  unbalanced tuesdays'
       continue
     print '  balanced tuesdays'
-
     if not balance('gilman/san pablo', on_gilman, games, teams):
       continue
-
     if not balance('early gilman', early_gilman, games, teams):
       continue
     break
 
-
-  print_team_schedule('T1', games)
+  for t in teams:
+    print '\n**%s**' % t
+    print_team_schedule(t, games)
 
 
 if __name__ == '__main__':
