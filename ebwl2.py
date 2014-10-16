@@ -81,6 +81,9 @@ def on_tuesday(game):
 def on_gilman(game):
   return 'Gilman' in game.slot.location()
 
+def early_gilman(game):
+  return on_gilman(game) and '7' in game.slot.time
+
 def games_for_team(team, games):
   return filter(lambda g: g.t1 == team or g.t2 == team, games)
 
@@ -138,23 +141,41 @@ def schedule(games, slots):
     available_games[0].schedule(s)
   return True
 
-def balance(pred, games, teams):
+def try_balance(pred, games, teams):
   counts = count_metric(pred, games, len(teams)).values()
   total_avail = sum(counts)
   min_per = total_avail / len(teams)
-  if min(counts) >= min_per:
+  max_per = (total_avail + len(teams) - 1) / len(teams)
+  if min(counts) >= min_per and max(counts) <= max_per:
     return True
   for t in teams:
-    while metric_total(pred, games_for_team(t, games)) < min_per:
-      neg_games = filter(lambda g: not(pred(g)), games_for_team(t, games))
-      dates_to_swap = map(lambda g: g.slot.date, neg_games)
-      games_to_swap = map(lambda d: games_on_day(d,games), dates_to_swap)
-      games_to_swap = filter(pred, sum(games_to_swap,[]))
-      games_to_swap.sort(key=lambda g: game_total(pred, g, games), reverse=True)
-      down_game = games_to_swap[0]
-      up_game = games_on_day(down_game.slot.date, games_for_team(t, games))[0]
-      down_game.swap_slot(up_game)
+    if metric_total(pred, games_for_team(t, games)) < min_per:
+      swap_one_for(t, pred, games)
+    elif metric_total(pred, games_for_team(t, games)) > max_per:
+      swap_one_for(t, lambda g: not(pred), games)
   return False
+
+def swap_one_for(team, pred, games):
+  neg_games = filter(lambda g: not(pred(g)), games_for_team(team, games))
+  dates_to_swap = map(lambda g: g.slot.date, neg_games)
+  games_to_swap = map(lambda d: games_on_day(d,games), dates_to_swap)
+  games_to_swap = filter(pred, sum(games_to_swap,[]))
+  games_to_swap.sort(key=lambda g: game_total(pred, g, games), reverse=True)
+  if len(games_to_swap)>0:
+    down_game = games_to_swap[0]
+    up_game = games_on_day(down_game.slot.date, games_for_team(team, games))[0]
+    down_game.swap_slot(up_game)
+
+def balance(label, pred, games, teams):
+  trials = 0
+  while not try_balance(pred, games, teams) and trials < 10:
+    trials += 1
+  if trials == 10:
+    print '  unbalanced', label
+    return False
+  # print 'Gilman: ', count_metric(on_gilman, games, num_teams)
+  print '  balanced', label
+  return True
 
 
 def main():
@@ -163,8 +184,9 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 1717
-  while True:
+  seed = 6475
+  scheduled = False
+  while not scheduled:
     random.seed(seed)
     seed += 1
     teams = gen_teams(num_teams)
@@ -172,17 +194,19 @@ def main():
     slots = load_slots(filename)
     if not schedule(games, slots):
       continue
-    print 'seed=%u' % (seed-1)
-    print '  scheduled'
+    print 'seed=%u\n  scheduled' % (seed-1)
     if not check_balance(on_tuesday, games, teams):
       print '  unbalanced tuesdays'
       continue
     print '  balanced tuesdays'
 
-    while not balance(on_gilman, games, teams):
-      pass
-    print '  balanced gilman/san pablo'
+    if not balance('gilman/san pablo', on_gilman, games, teams):
+      continue
+
+    if not balance('early gilman', early_gilman, games, teams):
+      continue
     break
+
 
   print_team_schedule('T1', games)
 
