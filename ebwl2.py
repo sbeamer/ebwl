@@ -72,6 +72,8 @@ def slot_stats(slots):
   time_counts = Counter(map(lambda slot: slot.time, slots))
   print '  Time: ', time_counts.items()
 
+def in_2014(game):
+  return '2014' in game.slot.date
 
 def on_tuesday(game):
   return 'Tuesday' in game.slot.weekday
@@ -117,12 +119,17 @@ def game_total(pred, g, games):
          metric_total(pred, games_for_team(g.t2, games))
 
 
-def check_balance(pred, games, teams):
+def check_balance(label, pred, games, teams):
   counts = count_metric(pred, games).values()
   total_avail = sum(counts)
   min_per = total_avail / len(teams)
   max_per = (total_avail + len(teams) - 1) / len(teams)
-  return min(counts) >= min_per and max(counts) <= max_per
+  if min(counts) >= min_per and max(counts) <= max_per:
+    print '  balanced', label
+    return True
+  else:
+    print '  unbalanced', label
+    return False
 
 
 def schedule(games, slots):
@@ -186,10 +193,10 @@ def main():
     if not schedule(games, slots):
       continue
     print 'seed=%u\n  scheduled' % (seed-1)
-    if not check_balance(on_tuesday, games, teams):
-      print '  unbalanced tuesdays'
+    if not check_balance('2014/2015', in_2014, games, teams):
       continue
-    print '  balanced tuesdays'
+    if not check_balance('tuesdays', on_tuesday, games, teams):
+      continue
     if not balance('gilman/san pablo', on_gilman, games, teams):
       continue
     if not balance('early gilman', early_gilman, games, teams):
