@@ -105,9 +105,9 @@ def games_free_for_day(games, date):
 def print_team_schedule(team, games):
   print_list(sorted(games_for_team(team, games),key=lambda g: g.slot.date))
 
-def count_metric(pred, games, num_teams):
-  c = Counter(teams_playing_in(filter(pred, games)))
-  return c
+def count_metric(pred, games):
+  return Counter([t for g in games for t in g.teams() if pred(g)])
+
 
 def metric_total(pred, games):
   return len(filter(pred, games))
@@ -118,7 +118,7 @@ def game_total(pred, g, games):
 
 
 def check_balance(pred, games, teams):
-  counts = count_metric(pred, games, len(teams)).values()
+  counts = count_metric(pred, games).values()
   total_avail = sum(counts)
   min_per = total_avail / len(teams)
   max_per = (total_avail + len(teams) - 1) / len(teams)
@@ -135,7 +135,7 @@ def schedule(games, slots):
   return True
 
 def try_balance(pred, games, teams):
-  counts = count_metric(pred, games, len(teams)).values()
+  counts = count_metric(pred, games).values()
   total_avail = sum(counts)
   min_per = total_avail / len(teams)
   max_per = (total_avail + len(teams) - 1) / len(teams)
