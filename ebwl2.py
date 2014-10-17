@@ -124,13 +124,10 @@ def check_balance(label, pred, games, teams):
   total_avail = sum(counts)
   min_per = total_avail / len(teams)
   max_per = (total_avail + len(teams) - 1) / len(teams)
-  if min(counts) >= min_per and max(counts) <= max_per:
-    print '  balanced', label
-    return True
-  else:
-    print '  unbalanced', label
-    return False
-
+  r = min(counts) >= min_per and max(counts) <= max_per
+  s = '' if r else 'un'
+  print '  %sbalanced %s' % (s, label)
+  return r
 
 def schedule(games, slots):
   for s in slots:
