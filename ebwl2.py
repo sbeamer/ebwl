@@ -83,22 +83,22 @@ def early_gilman(game):
   return on_gilman(game) and '7' in game.slot.time
 
 def games_for_team(team, games):
-  return filter(lambda g: g.t1 == team or g.t2 == team, games)
+  return [g for g in games if (g.t1 == team) or (g.t2 == team)]
 
 def remove_unscheduled(games):
-  return filter(lambda g: g.slot != None, games)
+  return [g for g in games if g.slot != None]
 
 def games_excl_teams(games, teams):
-  return filter(lambda g: (g.t1 not in teams) and (g.t2 not in teams), games)
+  return [g for g in games if (g.t1 not in teams) and (g.t2 not in teams)]
 
 def games_on_day(date, games):
-  return filter(lambda g: g.slot.date==date, remove_unscheduled(games))
+  return [g for g in remove_unscheduled(games) if g.slot.date==date]
 
 def teams_playing_in(games):
-  return sum(map(lambda g: g.teams(), games), [])
+  return [t for g in games for t in g.teams()]
 
 def games_free_for_day(games, date):
-  unscheduled = filter(lambda g: g.slot == None, games)
+  unscheduled = [g for g in games if g.slot == None]
   teams_playing = teams_playing_in(games_on_day(date, games))
   return games_excl_teams(unscheduled, teams_playing)
 
@@ -177,12 +177,12 @@ def main():
     return
   filename = sys.argv[1]
   seed = 6475
+  teams = gen_teams(num_teams)
+  slots = load_slots(filename)
   while True:
     random.seed(seed)
     seed += 1
-    teams = gen_teams(num_teams)
     games = gen_games(teams)
-    slots = load_slots(filename)
     if not schedule(games, slots):
       continue
     print 'seed=%u\n  scheduled' % (seed-1)
@@ -195,7 +195,6 @@ def main():
     if not balance('early gilman', early_gilman, games, teams):
       continue
     break
-
   for t in teams:
     print '\n**%s**' % t
     print_team_schedule(t, games)
