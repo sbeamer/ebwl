@@ -95,7 +95,7 @@ def games_on_day(date, games):
   return [g for g in remove_unscheduled(games) if g.slot.date==date]
 
 def teams_playing_in(games):
-  return [t for g in games for t in g.teams()]
+  return set([t for g in games for t in g.teams()])
 
 def games_free_for_day(games, date):
   unscheduled = [g for g in games if g.slot == None]
