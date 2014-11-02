@@ -90,6 +90,9 @@ def games_for_team(team, games):
 def remove_unscheduled(games):
   return [g for g in games if g.slot != None]
 
+def games_with_teams(games, teams):
+  return [g for g in games if (g.t1 in teams) or (g.t2 in teams)]
+
 def games_excl_teams(games, teams):
   return [g for g in games if (g.t1 not in teams) and (g.t2 not in teams)]
 
@@ -112,11 +115,10 @@ def count_metric(pred, games):
 
 
 def metric_total(pred, games):
-  return len(filter(pred, games))
+  return len([g for g in games if pred(g)])
 
 def game_total(pred, g, games):
-  return metric_total(pred, games_for_team(g.t1, games)) + \
-         metric_total(pred, games_for_team(g.t2, games))
+  return metric_total(pred, games_with_teams(games, g.teams()))
 
 
 def check_balance(label, pred, games, teams):
