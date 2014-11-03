@@ -132,12 +132,15 @@ def check_balance(label, pred, games, teams):
   return r
 
 def schedule(games, slots):
+  done = []
   for s in slots:
     available_games = games_free_for_day(games, s.date)
     if len(available_games) == 0:
       return False
     random.shuffle(available_games)
+    available_games.sort(key=lambda g: game_total(in_2014, g, done))
     available_games[0].schedule(s)
+    done += [available_games[0]]
   return True
 
 def try_balance(pred, games, teams):
@@ -182,7 +185,7 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 6475
+  seed = 7804
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
   while True:
