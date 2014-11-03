@@ -222,11 +222,12 @@ def main():
     if not balance('early gilman', early_gilman, gilman_games, teams):
       continue
     break
-  for t in teams:
-    print '\n**%s**' % t
-    print_team_schedule(t, games)
-  last_games(teams, games)
-  san_pablo_triples(teams, games)
+  # last_games(teams, games)
+  # san_pablo_triples(teams, games)
+  # for t in teams:
+  #   print '\n**%s**' % t
+  #   print_team_schedule(t, games)
+  print_list(sorted(games, key=lambda g: (g.slot.date,g.slot.field)))
 
 
 if __name__ == '__main__':
