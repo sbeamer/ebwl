@@ -138,6 +138,7 @@ def schedule(games, slots):
     if len(available_games) == 0:
       return False
     random.shuffle(available_games)
+    available_games.sort(key=lambda g: game_total(on_tuesday, g, done))
     available_games.sort(key=lambda g: game_total(in_2014, g, done))
     available_games[0].schedule(s)
     done += [available_games[0]]
@@ -185,7 +186,7 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 7804
+  seed = 10939
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
   while True:
