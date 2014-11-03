@@ -179,6 +179,22 @@ def balance(label, pred, games, teams):
   print '  balanced', label
   return True
 
+def last_games(teams, games):
+  lasts = []
+  for t in teams:
+    t_games = sorted(games_for_team(t, games), key=lambda g: g.slot.date)
+    lasts += [t_games[-1].slot.date]
+  print sorted(lasts)
+
+def san_pablo_triples(teams, games):
+  total = 0
+  for t in teams:
+    t_games = sorted(games_for_team(t, games), key=lambda g: g.slot.date)
+    sites = [g.slot.location() for g in t_games]
+    for i in range(2,len(sites)):
+      if sites[i] == 'San Pablo' and sites[i-1]==sites[i] and sites[i-2]==sites[i]:
+        total += 1
+  print '# San Pablo triples:', total
 
 def main():
   num_teams = 12
@@ -186,7 +202,7 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 10939
+  seed = 14232
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
   while True:
@@ -202,12 +218,15 @@ def main():
       continue
     if not balance('gilman/san pablo', on_gilman, games, teams):
       continue
-    if not balance('early gilman', early_gilman, games, teams):
+    gilman_games = filter(lambda g: on_gilman(g), games)
+    if not balance('early gilman', early_gilman, gilman_games, teams):
       continue
     break
   for t in teams:
     print '\n**%s**' % t
     print_team_schedule(t, games)
+  last_games(teams, games)
+  san_pablo_triples(teams, games)
 
 
 if __name__ == '__main__':
