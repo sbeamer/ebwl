@@ -72,8 +72,8 @@ def slot_stats(slots):
   time_counts = Counter(map(lambda slot: slot.time, slots))
   print '  Time: ', time_counts.items()
 
-def in_2014(game):
-  return '2014' in game.slot.date
+def in_2015(game):
+  return '2015' in game.slot.date
 
 def on_tuesday(game):
   return 'Tuesday' in game.slot.weekday
@@ -139,7 +139,7 @@ def schedule(games, slots):
       return False
     random.shuffle(available_games)
     available_games.sort(key=lambda g: game_total(on_tuesday, g, done))
-    available_games.sort(key=lambda g: game_total(in_2014, g, done))
+    available_games.sort(key=lambda g: game_total(in_2015, g, done))
     available_games[0].schedule(s)
     done += [available_games[0]]
   return True
@@ -202,7 +202,7 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 14232
+  seed = 1
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
   while True:
@@ -212,7 +212,7 @@ def main():
     if not schedule(games, slots):
       continue
     print 'seed=%u\n  scheduled' % (seed-1)
-    if not check_balance('2014/2015', in_2014, games, teams):
+    if not check_balance('2015/2016', in_2015, games, teams):
       continue
     if not check_balance('tuesdays', on_tuesday, games, teams):
       continue
