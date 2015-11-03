@@ -81,6 +81,12 @@ def on_tuesday(game):
 def on_gilman(game):
   return 'Gilman' in game.slot.location()
 
+def on_grove(game):
+  return 'Grove' in game.slot.location()
+
+def on_san_pablo(game):
+  return 'San Pablo' in game.slot.location()
+
 def early_gilman(game):
   return on_gilman(game) and '7' in game.slot.time
 
@@ -129,6 +135,8 @@ def check_balance(label, pred, games, teams):
   r = min(counts) >= min_per and max(counts) <= max_per
   s = '' if r else 'un'
   print '  %sbalanced %s' % (s, label)
+  if not r:
+    print '  ', min_per, min(counts), max_per, max(counts)
   return r
 
 def schedule(games, slots):
@@ -138,7 +146,8 @@ def schedule(games, slots):
     if len(available_games) == 0:
       return False
     random.shuffle(available_games)
-    available_games.sort(key=lambda g: game_total(on_tuesday, g, done))
+    # available_games.sort(key=lambda g: game_total(on_tuesday, g, done))
+    # available_games.sort(key=lambda g: game_total(on_grove, g, done))
     available_games.sort(key=lambda g: game_total(in_2015, g, done))
     available_games[0].schedule(s)
     done += [available_games[0]]
@@ -160,6 +169,8 @@ def try_balance(pred, games, teams):
 
 def swap_one_for(team, pred, games):
   neg_games = filter(lambda g: not(pred(g)), games_for_team(team, games))
+  if pred == on_grove:
+    neg_games = filter(on_san_pablo, games_for_team(team, games))
   dates_to_swap = map(lambda g: g.slot.date, neg_games)
   games_to_swap = map(lambda d: games_on_day(d,games), dates_to_swap)
   games_to_swap = filter(pred, sum(games_to_swap,[]))
@@ -170,10 +181,11 @@ def swap_one_for(team, pred, games):
     down_game.swap_slot(up_game)
 
 def balance(label, pred, games, teams):
+  max_trials = 10
   trials = 0
-  while not try_balance(pred, games, teams) and trials < 10:
+  while not try_balance(pred, games, teams) and trials < max_trials:
     trials += 1
-  if trials == 10:
+  if trials == max_trials:
     print '  unbalanced', label
     return False
   print '  balanced', label
@@ -186,15 +198,16 @@ def last_games(teams, games):
     lasts += [t_games[-1].slot.date]
   print sorted(lasts)
 
-def san_pablo_triples(teams, games):
+def grass_triples(teams, games):
   total = 0
   for t in teams:
     t_games = sorted(games_for_team(t, games), key=lambda g: g.slot.date)
-    sites = [g.slot.location() for g in t_games]
-    for i in range(2,len(sites)):
-      if sites[i] == 'San Pablo' and sites[i-1]==sites[i] and sites[i-2]==sites[i]:
+    for i in range(2,len(t_games)):
+      if not(on_gilman(t_games[i])) and not(on_gilman(t_games[i-1])) \
+         and not(on_gilman(t_games[i-2])):
         total += 1
-  print '# San Pablo triples:', total
+  print '# Grass triples:', total
+  return total
 
 def main():
   num_teams = 12
@@ -202,9 +215,10 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 1
+  seed = 1099 #40568
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
+  # slot_stats(slots)
   while True:
     random.seed(seed)
     seed += 1
@@ -216,18 +230,30 @@ def main():
       continue
     if not check_balance('tuesdays', on_tuesday, games, teams):
       continue
-    if not balance('gilman/san pablo', on_gilman, games, teams):
+    if not balance('gilman', on_gilman, games, teams):
       continue
     gilman_games = filter(lambda g: on_gilman(g), games)
     if not balance('early gilman', early_gilman, gilman_games, teams):
       continue
+    if not balance('grove', on_grove, games, teams):
+      continue
+    if grass_triples(teams, games) > 0:
+      continue
+    # if not balance('gilman', on_gilman, games, teams):
+    #   continue
+    # if not check_balance('gilman', on_gilman, games, teams):
+    #   continue
     break
-  # last_games(teams, games)
-  # san_pablo_triples(teams, games)
-  # for t in teams:
-  #   print '\n**%s**' % t
-  #   print_team_schedule(t, games)
-  print_list(sorted(games, key=lambda g: (g.slot.date,g.slot.field)))
+  last_games(teams, games)
+  for t in teams:
+    print '\n**%s**' % t
+    print_team_schedule(t, games)
+  # print_list(sorted(games, key=lambda g: (g.slot.date,g.slot.field)))
+
+
+# state of affairs:
+#  - perfectly balancing grove may not be possible
+#  - could try simulated annealing approach of trying "bad" things for balance
 
 
 if __name__ == '__main__':
