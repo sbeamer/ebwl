@@ -134,7 +134,7 @@ def sum_outliers(games, num_teams, pred):
   total_avail = sum(counts)
   min_per = total_avail / num_teams
   max_per = (total_avail + num_teams - 1) / num_teams
-  return (min_per - min(counts)) + (max(counts) - max_per)
+  return abs((min_per - min(counts)) + (max(counts) - max_per))
 
 
 def check_balance(label, pred, games, teams):
@@ -145,8 +145,8 @@ def check_balance(label, pred, games, teams):
   r = min(counts) >= min_per and max(counts) <= max_per
   s = '' if r else 'un'
   print '  %sbalanced %s' % (s, label)
-  if not r:
-    print '  ', min_per, min(counts), max_per, max(counts)
+  # if not r:
+  #   print '  ', min_per, min(counts), max_per, max(counts)
   return r
 
 def schedule(games, slots):
@@ -201,18 +201,17 @@ def balance(label, pred, games, teams):
   print '  balanced', label
   return True
 
-def simulated_annealing(label, pred, games, num_teams):
+def simulated_annealing(label, pred, games, num_teams, target=0):
   print 'simulated annealing on', label
   dates = all_days(games)
   for trial in range(1, 10000):
     temp = 100./trial
     orig_score = sum_outliers(games, num_teams, pred)
-    if orig_score == 0:
-      print 'took %d trials' % trial
-      break
+    if orig_score <= target:
+      print '  took %d trials' % trial
+      return True
     chosen_day = dates[random.randint(0, len(dates)-1)]
     games_to_swap = games_on_day(chosen_day, games)
-    # print chosen_day, len(games_to_swap)
     pos_games = filter(pred, games_to_swap)
     neg_games = filter(lambda g: not(pred(g)), games_to_swap)
     if not pos_games or not neg_games:
@@ -223,14 +222,12 @@ def simulated_annealing(label, pred, games, num_teams):
     game_b = neg_games[0]
     game_a.swap_slot(game_b)
     new_score = sum_outliers(games, num_teams, pred)
-    # print orig_score, new_score
     if new_score > orig_score:
       acc_prob = math.exp((orig_score - new_score) / temp)
       if random.random() > acc_prob:
-        # print 'undo'
-        game_a.swap_slot(game_b)
-      # else:
-        # print 'going uphill'
+        game_a.swap_slot(game_b)  # undo
+  print 'trapped', orig_score
+  return False
 
 def last_games(teams, games):
   lasts = []
@@ -256,7 +253,7 @@ def main():
     print 'Please give schedule input csv'
     return
   filename = sys.argv[1]
-  seed = 1 #1272
+  seed = 121756 #12588 #27511
   teams = gen_teams(num_teams)
   slots = load_slots(filename)
   # slot_stats(slots)
@@ -271,11 +268,14 @@ def main():
       continue
     if not check_balance('tuesdays', on_tuesday, games, teams):
       continue
-    simulated_annealing('gilman', on_gilman, games, num_teams)
+    if not simulated_annealing('gilman', on_gilman, games, num_teams):
+      continue
     gilman_games = filter(lambda g: on_gilman(g), games)
-    simulated_annealing('early gilman', early_gilman, gilman_games, num_teams)
+    if not simulated_annealing('early gilman', early_gilman, gilman_games, num_teams):
+      continue
     grass_games = filter(lambda g: not(on_gilman(g)), games)
-    simulated_annealing('grove', on_grove, grass_games, num_teams)
+    if not simulated_annealing('grove', on_grove, grass_games, num_teams):
+      continue
     # if not balance('gilman', on_gilman, games, teams):
     #   continue
     # gilman_games = filter(lambda g: on_gilman(g), games)
@@ -286,11 +286,11 @@ def main():
     if grass_triples(teams, games) > 0:
       continue
     break
-  last_games(teams, games)
-  for t in teams:
-    print '\n**%s**' % t
-    print_team_schedule(t, games)
-  # print_list(sorted(games, key=lambda g: (g.slot.date,g.slot.field)))
+  # last_games(teams, games)
+  # for t in teams:
+  #   print '\n**%s**' % t
+  #   print_team_schedule(t, games)
+  print_list(sorted(games, key=lambda g: (g.slot.date,g.slot.field)))
 
 
 if __name__ == '__main__':
